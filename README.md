@@ -61,12 +61,6 @@
 
 在 [AuraBaba 技能市场](https://aurababa.com/auradev/skills?tab=platform) 搜索 **dev-ops**，一键安装。
 
-或者用 CLI 导入：
-
-```bash
-aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
-```
-
 ### 2. 填写配置
 
 将本仓库的 `config.example.json` 复制到项目根目录并重命名为 `devops.config.json`。通常只需填写 SSH、服务器部署目录和镜像仓库前缀；Compose、Dockerfile、服务和健康检查由 Skill 从项目自动识别，只有识别不到或存在冲突时才填写 `overrides`。
@@ -164,11 +158,7 @@ AuraBaba_Ops_Skill/
 
 ### 1. Install
 
-Find **dev-ops** in the [AuraBaba Skill Marketplace](https://aurababa.com/auradev/skills?tab=platform), or:
-
-```bash
-aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
-```
+Find **dev-ops** in the [AuraBaba Skill Marketplace](https://aurababa.com/auradev/skills?tab=platform) and install it there.
 
 ### 2. Configure
 
