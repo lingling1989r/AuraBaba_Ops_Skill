@@ -46,7 +46,7 @@
 |------|------|
 | 🐳 多策略构建 | Docker build / Go 交叉编译 / 静态文件 — 自动选最合适的 |
 | 🚀 替代 CI/CD | GitHub 同步 → 测试 → 构建 → 推镜像 → 部署/迁移 → 网址验证 → 回滚 |
-| 🔒 安全第一 | 绝不在服务器上 build、原子化配置更新、失败自动回滚 |
+| 🔒 安全第一 | 开发机/独立 runner 构建；生产机只 pull + 无构建重启，失败自动回滚 |
 | 🔍 自动识别 | 自动读取 Compose、Dockerfile、healthcheck 和项目构建信息 |
 | 📋 最小配置 | `devops.config.json` 只保存服务器、仓库等环境差异 |
 | 🔄 SCP 兜底 | 镜像仓库挂了也能直传镜像到服务器 |
@@ -156,7 +156,7 @@ AuraBaba_Ops_Skill/
 
 - 🐳 Multi-strategy builds (Docker / Go cross-compile / static)
 - 🚀 Full CI/CD replacement: GitHub sync → test → build → publish → deploy/migrate → URL checks → rollback
-- 🔒 No-build-on-server policy, atomic config updates, automatic rollback
+- 🔒 Build on a workstation/dedicated runner; production only pulls and restarts with `--no-build`
 - 🔍 Auto-discovers Compose, Dockerfiles, health checks, and build metadata
 - 📋 Minimal `devops.config.json` for environment-specific values only
 - 🔄 SCP fallback when the registry is down

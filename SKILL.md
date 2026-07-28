@@ -75,7 +75,9 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 - 禁止使用带 `build:` 的 Compose 文件
 - 禁止在服务器临时修改源码来完成发布
 
-所有构建在本地完成。服务器只执行镜像登录（需要时）、`docker pull`、配置切换、`docker compose up -d --no-build`、健康检查和回滚。
+所有代码同步、依赖安装、测试、二进制编译和镜像构建都在本地执行端（开发机或独立 build runner）完成，**绝不能把 `deploy_server` 当作 build runner**。生产服务器只执行镜像登录（需要时）、`docker pull`、配置/迁移切换、`docker compose up -d --no-build`、健康检查和回滚。
+
+连接生产机后、执行任何部署脚本前，必须检查目标脚本与实际 Compose 命令。只要发现 `docker build`、`compose build`、`--build`、语言编译/前端构建命令或引用 build-only Compose 文件，立即停止，不以“临时构建”“只构建一个服务”为例外。
 
 ### 版本与凭证
 
@@ -95,11 +97,11 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 
 1. **Source**：从 `github_repository` fetch `deploy_branch`，锁定 `SOURCE_COMMIT`。
 2. **Discover**：解析 Compose/Dockerfile/项目构建信息，生成 build manifest。
-3. **Build**：在本地为目标平台构建所有一方服务镜像，使用 `SOURCE_COMMIT` 作为不可变 tag。
-4. **Test**：执行仓库已有的相关测试/构建校验，再做镜像架构检查与容器 smoke test。
+3. **Build**：只在本地执行端为目标平台构建所有一方服务镜像，使用 `SOURCE_COMMIT` 作为不可变 tag。
+4. **Test**：只在本地执行端执行仓库已有的相关测试/构建校验，再做镜像架构检查与容器 smoke test。
 5. **Publish**：推送全部镜像并记录远端 digest；任何一个失败都不部署。
 6. **Prepare**：核对远端配置/secret 是否齐全；若发布包含数据库迁移，确认项目已有迁移/备份/兼容策略，否则停止询问。
-7. **Deploy**：服务器先拉取全部 digest/tag，再原子切换配置，执行项目既有迁移入口并 `--no-build` 重启。
+7. **Deploy**：生产服务器只先拉取全部 digest/tag，再原子切换配置，执行项目既有运行时迁移入口并 `--no-build` 重启；不得在此阶段回退到源码或镜像构建。
 8. **Verify**：验证容器状态、内部 healthcheck，并逐一检查 `verify_urls`。
 9. **Rollback**：任一部署后检查失败，恢复旧配置和旧镜像，重新验证；数据库迁移仅按项目声明的安全回滚策略处理，不臆造逆向 SQL。
 10. **Report**：报告仓库、branch、commit、测试、镜像 digest、迁移、服务器、每个网址结果及是否回滚。
