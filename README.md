@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/github/license/lingling1989r/AuraBaba_Ops_Skill" alt="License">
 </p>
 
-# 🚀 AuraBaba Ops Skills
+# 🚀 AuraBaba Ops Skill
 
 > **用嘴部署，用 AI 运维。**  
 > 把 Docker 构建、镜像推送、服务器部署这些重复劳动，交给你的 AI 队友。
@@ -31,20 +31,16 @@
 | 你想做的事 | 你只需要说 |
 |------------|------------|
 | 🔄 部署新版本到服务器 | 「部署 `abc1234` 到生产环境」 |
-| 📦 发布 CLI 新版本 | 「发布 Aura CLI v0.4.0」 |
+| 📦 发布 CLI 新版本 | 「发布 CLI v0.4.0」 |
 | 🩺 检查服务健康状态 | 「检查服务器上的服务都正常吗」 |
 | ⏪ 部署出问题要回滚 | 「回滚到上一个版本」 |
-| 🐳 只更新前端镜像 | 「把前端更新到 `def5678`」 |
+| 🐳 只更新某一个服务 | 「把前端更新到 `def5678`」 |
 
 **你描述意图，Skill 执行标准化流程。**
 
 ---
 
-## 🎯 两个 Skill，覆盖所有场景
-
-### 🌐 `dev-ops` — 通用运维 Skill
-
-> 适合**任何**用 Docker Compose 部署的项目。
+## 🎯 核心能力
 
 | 能力 | 说明 |
 |------|------|
@@ -53,18 +49,8 @@
 | 🔒 安全第一 | 绝不在服务器上 build、原子化配置更新、失败自动回滚 |
 | 📋 配置驱动 | 一份 `devops.config.md`，所有参数集中管理 |
 | 🔄 SCP 兜底 | 镜像仓库挂了也能直传镜像到服务器 |
+| 📦 CLI 发布 | 支持 CLI 工具交叉编译、Mirror 直传、GitHub Release 全流程 |
 | 🧩 零锁定 | 不限定语言/框架 — Go、Node.js、Python、Rust 都能用 |
-
-### 🏠 `aura-manager-ops` — AuraManager 专属运维 Skill
-
-> 为 [AuraBaba](https://aurababa.com) 平台量身定制。
-
-| 能力 | 说明 |
-|------|------|
-| 🎯 开箱即用 | 前端/后端/文档三服务预配置，拿来就能用 |
-| 🔧 Go 交叉编译 | macOS ARM64 本地编译 → Linux x86_64 镜像，避免 QEMU 性能问题 |
-| 📦 CLI 全流程发布 | 自动交叉编译 6 个平台 → Mirror 直传 → GitHub Release |
-| 🌐 域名验证 | 部署后自动检测 aurababa.com 可访问性 |
 
 ---
 
@@ -72,21 +58,17 @@
 
 ### 1. 安装 Skill
 
-在 [AuraBaba 技能市场](https://aurababa.com/auradev/skills?tab=platform) 搜索 **dev-ops** 或 **aura-manager-ops**，一键安装。
+在 [AuraBaba 技能市场](https://aurababa.com/auradev/skills?tab=platform) 搜索 **dev-ops**，一键安装。
 
 或者用 CLI 导入：
 
 ```bash
-# 通用 dev-ops
-aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill/tree/main/dev-ops
-
-# AuraManager 专属
-aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill/tree/main/aura-manager-ops
+aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
 ```
 
 ### 2. 填写配置
 
-复制 `config.example.md` → 重命名为 `config.md` → 填入你的服务器 IP、域名、镜像仓库地址。
+将本仓库的 `config.example.md` 复制到你的项目目录，重命名为 `devops.config.md`，填入你的服务器 IP、域名、镜像仓库地址。
 
 ### 3. 开始用
 
@@ -98,13 +80,22 @@ aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill/tree/main
 
 ---
 
+## 📁 文件结构
+
+```
+AuraBaba_Ops_Skill/
+├── SKILL.md              # Skill 定义文件（工作流指令）
+├── config.example.md     # 配置模板（复制到项目中填写）
+└── README.md             # 本文件
+```
+
 ## 🔗 更多资源
 
 | 资源 | 链接 |
 |------|------|
 | 🏠 官网 | [aurababa.com](https://aurababa.com) |
 | 🛒 技能市场 | [aurababa.com/auradev/skills](https://aurababa.com/auradev/skills?tab=platform) |
-| 📖 Aura CLI 文档 | [aurababa.com/docs](https://aurababa.com/docs) |
+| 📖 文档 | [aurababa.com/docs](https://aurababa.com/docs) |
 | 💬 问题反馈 | [GitHub Issues](https://github.com/lingling1989r/AuraBaba_Ops_Skill/issues) |
 
 ---
@@ -153,48 +144,33 @@ aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill/tree/main
 | 📦 Ship a CLI release | "Release CLI v0.4.0" |
 | 🩺 Health-check services | "Are all services healthy on the server?" |
 | ⏪ Rollback a bad deploy | "Rollback to the previous version" |
-| 🐳 Update frontend only | "Update frontend image to `def5678`" |
+| 🐳 Update a single service | "Update frontend to `def5678`" |
 
 **You describe intent. The Skill executes the standard operating procedure.**
 
-## 🎯 Two Skills, Every Scenario Covered
-
-### 🌐 `dev-ops` — Universal Ops Skill
-
-For **any** Docker Compose project. Zero lock-in — Go, Node.js, Python, Rust, whatever.
+## 🎯 Core Capabilities
 
 - 🐳 Multi-strategy builds (Docker / Go cross-compile / static)
-- 🚀 One-command deploy pipeline
+- 🚀 One-command deploy pipeline: build → push → pull → restart → verify
 - 🔒 No-build-on-server policy, atomic config updates, automatic rollback
 - 📋 Fully config-driven via `devops.config.md`
 - 🔄 SCP fallback when the registry is down
-
-### 🏠 `aura-manager-ops` — AuraManager Specialized Skill
-
-Purpose-built for the [AuraBaba](https://aurababa.com) platform.
-
-- 🎯 Pre-configured frontend + backend + docs services
-- 🔧 Go cross-compile: macOS ARM64 → Linux x86_64, no QEMU overhead
-- 📦 Full CLI release pipeline: cross-compile 6 platforms → mirror → GitHub Release
-- 🌐 Automatic aurababa.com domain verification
+- 📦 Full CLI release pipeline: cross-compile → mirror → GitHub Release
+- 🧩 Zero lock-in — Go, Node.js, Python, Rust, whatever you use
 
 ## 🏃 Start in 30 Seconds
 
-### 1. Install the Skill
+### 1. Install
 
-Find **dev-ops** or **aura-manager-ops** in the [AuraBaba Skill Marketplace](https://aurababa.com/auradev/skills?tab=platform), or:
+Find **dev-ops** in the [AuraBaba Skill Marketplace](https://aurababa.com/auradev/skills?tab=platform), or:
 
 ```bash
-# Generic dev-ops
-aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill/tree/main/dev-ops
-
-# AuraManager specific
-aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill/tree/main/aura-manager-ops
+aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
 ```
 
-### 2. Fill in the Config
+### 2. Configure
 
-Copy `config.example.md` → rename to `config.md` → add your server IP, domain, and registry details.
+Copy `config.example.md` to your project, rename to `devops.config.md`, and fill in your server IP, domain, and registry details.
 
 ### 3. Talk to Your AI
 
