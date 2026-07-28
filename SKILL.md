@@ -33,7 +33,19 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 6. 从 Compose/Dockerfile/应用路由识别健康检查；无法确认时只要求配置 `overrides.health_urls`，不要求填写整个服务表。
 7. 检查项目已有 pull-only `deploy.sh`、发布脚本和 CI workflow，优先复用经审查的现有实现。
 
-将识别结果输出为简短清单，并标出“已识别 / 配置覆盖 / 仍需确认”。只有冲突或缺失会影响安全发布时才询问用户。
+识别完成后必须在执行上下文中生成一份 **build manifest**，每个需要本地构建的服务包含：
+
+- `service`：Compose 服务名
+- `context`：构建上下文的规范化路径
+- `dockerfile`：相对 `context` 的 Dockerfile
+- `target`、`args`：Compose 中声明的 build target/args（没有则为空）
+- `image_repository`：去掉旧 tag/digest 后的目标镜像仓库
+- `platform`：Compose 声明、配置覆盖或远端架构推断出的目标平台
+- `healthcheck`：Compose/Dockerfile 中识别到的检查命令或 URL
+
+只有同时具备 `context`、存在的 `dockerfile`、明确的 `image_repository` 和 `platform` 才能进入构建队列。只有 `image`、没有 `build` 的数据库/缓存等第三方服务归入“仅拉取”，不得误打包。一个服务若同时缺少 `build` 与 `image`，或多个 Dockerfile 无法唯一关联，必须标记“仍需确认”，不得继续猜测。
+
+将 manifest 输出为表格，逐项标出“项目识别 / 配置覆盖 / 仍需确认”。只有冲突或缺失会影响安全发布时才询问用户。后续构建、推送、部署和验证都必须使用这同一份 manifest，避免识别结果与实际命令脱节。
 
 ## 3. 强制安全边界
 
@@ -99,23 +111,26 @@ ssh "$SSH_CONNECTION" 'command -v docker && docker compose version'
 
 ## 6. 本地构建
 
-将 `RELEASE_TAG` 设为不可变 tag，默认完整 commit SHA。每个服务按自动识别结果构建；仅在 `overrides` 明确覆盖时使用配置值。
+将 `RELEASE_TAG` 设为不可变 tag，默认完整 commit SHA。逐项读取 build manifest 构建；不得再次扫描并临时换用另一份 Dockerfile。
 
 ### Docker 构建（`docker-node` / `docker-generic` / `go-docker`）
 
 ```bash
-docker build \
-  --platform "$TARGET_PLATFORM" \
+docker buildx build --load \
+  --platform "$MANIFEST_PLATFORM" \
   --label org.opencontainers.image.revision="$RELEASE_TAG" \
-  -t "$REGISTRY_PREFIX"/<image-name>:"$RELEASE_TAG" \
-  -f <Dockerfile> .
+  <有 target 时添加 --target 参数> \
+  <manifest 中逐项添加 --build-arg 参数> \
+  -t "$MANIFEST_IMAGE_REPOSITORY:$RELEASE_TAG" \
+  -f "$MANIFEST_CONTEXT/$MANIFEST_DOCKERFILE" \
+  "$MANIFEST_CONTEXT"
 ```
 
-如项目支持 BuildKit，优先使用 cache mount 和 secret mount。代理值只能从当前环境或安全配置读取，不应写入 Dockerfile 或提交到仓库。
+命令只是展开规则，不要求真的创建这些环境变量。每个参数必须来自 manifest；尤其不能把 context 固定成 `.`。如项目支持 BuildKit，优先使用 cache mount 和 secret mount。代理值只能从当前环境或安全配置读取，不应写入 Dockerfile 或提交到仓库。
 
 ### Go 原生交叉编译（`go-cross`）
 
-仅当项目已有构建信息能明确识别二进制入口、输出名、运行时基础镜像和额外文件，或 `overrides` 明确补充时使用。构建目录必须用 `mktemp -d` 创建并通过 trap 清理，避免复用 `/tmp` 中的旧产物：
+仅当 Dockerfile/项目脚本已明确采用原生交叉编译，或 `overrides` 明确指定时，才绕过 Dockerfile 使用此策略；不能只看到 `go.mod` 就擅自改为 `go-cross`。必须明确识别二进制入口、输出名、运行时基础镜像和额外文件。构建目录必须用 `mktemp -d` 创建并通过 trap 清理，避免复用 `/tmp` 中的旧产物：
 
 ```bash
 BUILD_DIR="$(mktemp -d)"
@@ -131,10 +146,10 @@ GOOS="$TARGET_GOOS" GOARCH="$TARGET_GOARCH" CGO_ENABLED="$CGO_ENABLED" \
 
 ## 7. 本地验证
 
-推送前对每个镜像执行：
+推送前对 manifest 中每个构建镜像执行：
 
 ```bash
-docker image inspect "$REGISTRY_PREFIX"/<image>:"$RELEASE_TAG" \
+docker image inspect "$MANIFEST_IMAGE_REPOSITORY:$RELEASE_TAG" \
   --format '{{.Os}}/{{.Architecture}}'
 ```
 
