@@ -45,7 +45,7 @@
 | 能力 | 说明 |
 |------|------|
 | 🐳 多策略构建 | Docker build / Go 交叉编译 / 静态文件 — 自动选最合适的 |
-| 🚀 一键部署 | 本地构建 → 推送镜像仓库 → 服务器拉取 → 重启容器 → 验证 |
+| 🚀 替代 CI/CD | GitHub 同步 → 测试 → 构建 → 推镜像 → 部署/迁移 → 网址验证 → 回滚 |
 | 🔒 安全第一 | 绝不在服务器上 build、原子化配置更新、失败自动回滚 |
 | 🔍 自动识别 | 自动读取 Compose、Dockerfile、healthcheck 和项目构建信息 |
 | 📋 最小配置 | `devops.config.json` 只保存服务器、仓库等环境差异 |
@@ -63,7 +63,16 @@
 
 ### 2. 填写配置
 
-将本仓库的 `config.example.json` 复制到项目根目录并重命名为 `devops.config.json`。通常只需填写 SSH、服务器部署目录和镜像仓库前缀；Compose、Dockerfile、服务和健康检查由 Skill 从项目自动识别，只有识别不到或存在冲突时才填写 `overrides`。
+将本仓库的 `config.example.json` 复制到项目根目录并重命名为 `devops.config.json`，填写 GitHub 代码仓库、发布分支、`user@IP` 部署服务器、服务器项目目录，以及部署后要逐一验证的官网/API 网址。Compose、Dockerfile、镜像和内部 healthcheck 由 Skill 从项目自动识别，只有识别不到或存在冲突时才填写 `overrides`。
+
+| 配置项 | 填什么 |
+|--------|--------|
+| `github_repository` | 代码同步来源，例如 `https://github.com/org/repo.git` |
+| `deploy_branch` | 发布分支，例如 `main` |
+| `deploy_server` | 服务器 SSH 地址，例如 `deploy@1.2.3.4` |
+| `server_project_path` | 服务器上的 Compose/部署目录，例如 `/srv/app` |
+| `verify_urls` | 官网、API、Docs 等验证网址；JSON 数组中以逗号分隔 |
+| `overrides` | 默认 `{}`；只有自动识别失败时才填写 |
 
 ### 3. 开始用
 
@@ -146,7 +155,7 @@ AuraBaba_Ops_Skill/
 ## 🎯 Core Capabilities
 
 - 🐳 Multi-strategy builds (Docker / Go cross-compile / static)
-- 🚀 One-command deploy pipeline: build → push → pull → restart → verify
+- 🚀 Full CI/CD replacement: GitHub sync → test → build → publish → deploy/migrate → URL checks → rollback
 - 🔒 No-build-on-server policy, atomic config updates, automatic rollback
 - 🔍 Auto-discovers Compose, Dockerfiles, health checks, and build metadata
 - 📋 Minimal `devops.config.json` for environment-specific values only
@@ -162,7 +171,7 @@ Find **dev-ops** in the [AuraBaba Skill Marketplace](https://aurababa.com/aurade
 
 ### 2. Configure
 
-Copy `config.example.json` to your project as `devops.config.json`. Usually only SSH, the remote project path, and the registry prefix are required. Compose services, Dockerfiles, and health checks are auto-discovered; use `overrides` only for missing or ambiguous values.
+Copy `config.example.json` to your project as `devops.config.json`. Fill in the GitHub repository, deployment branch, `user@IP` server, remote project path, and all website/API URLs that must pass after deployment. Compose services, Dockerfiles, images, and internal health checks are auto-discovered; use `overrides` only for missing or ambiguous values.
 
 ### 3. Talk to Your AI
 

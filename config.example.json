@@ -1,6 +1,11 @@
 {
-  "ssh_connection": "deploy@example.com",
-  "project_path": "/srv/example",
-  "registry_prefix": "ghcr.io/example",
+  "github_repository": "https://github.com/your-org/your-project.git",
+  "deploy_branch": "main",
+  "deploy_server": "deploy@203.0.113.10",
+  "server_project_path": "/srv/your-project",
+  "verify_urls": [
+    "https://www.example.com/",
+    "https://api.example.com/health"
+  ],
   "overrides": {}
 }

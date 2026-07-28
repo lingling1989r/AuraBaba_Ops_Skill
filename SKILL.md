@@ -9,26 +9,43 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 
 ## 1. 读取最小配置
 
-开始前在项目根目录查找并解析 `devops.config.json`。JSON 只保存**无法从项目可靠推断的环境差异**，通常仅需：
+开始前在项目根目录查找并解析 `devops.config.json`。JSON 保存发布入口和环境目标：
 
-- `ssh_connection`：目标服务器 SSH 连接
-- `project_path`：服务器部署目录
-- `registry_prefix`：镜像仓库命名空间
+- `github_repository`：需要同步和发布的 GitHub 仓库 HTTPS/SSH URL
+- `deploy_branch`：需要发布的分支，通常为 `main`
+- `deploy_server`：目标服务器，格式为 `user@IP` 或 SSH config 主机名
+- `server_project_path`：服务器上的项目/Compose 目录
+- `verify_urls`：部署后必须逐一验证的网址。使用 JSON 数组，每个网址用逗号分隔；可同时填写官网、API health、Docs 等
 
-域名、目标架构、版本变量名等策略可选。不要把 Dockerfile、Compose 服务、构建命令、端口等项目事实重复抄进配置。若文件不存在或缺少确实无法推断的值，提示用户从本 skill 的 `config.example.json` 复制；不要猜服务器或凭证。
+这五项在 `config.example.json` 中都有可直接替换的示例。镜像仓库优先从 Compose `image` 自动识别；无法识别时再要求 `overrides.registry_prefix`。不要把 Dockerfile、Compose 服务、构建命令、端口等项目事实重复抄进配置。若文件不存在或缺少发布所需值，提示用户从示例复制；不要猜服务器、仓库、网址或凭证。
 
-仅在自动识别失败或需要刻意覆盖时，才向 `overrides` 添加对应键，例如 `compose_file`、`env_file`、`image_tag_key`、`deploy_script`、`health_urls`、`dockerfiles`、`target_platform` 或 `cli`。未设置时，健康检查总超时默认 180 秒，SCP fallback 默认关闭。
+解析后统一映射为执行变量 `GITHUB_REPOSITORY`、`DEPLOY_BRANCH`、`DEPLOY_SERVER`、`SERVER_PROJECT_PATH` 和 `VERIFY_URLS`。开始前验证：仓库 URL 可访问、branch 存在、服务器 SSH 可连接、项目目录存在、`verify_urls` 非空且每项是 `http://` 或 `https://` URL。
+
+仅在自动识别失败或需要刻意覆盖时，才向 `overrides` 添加对应键，例如 `registry_prefix`、`compose_file`、`env_file`、`image_tag_key`、`deploy_script`、`health_urls`、`dockerfiles`、`target_platform` 或 `cli`。未设置时，健康检查总超时默认 180 秒，SCP fallback 默认关闭。
 
 配置只定义参数，不代表授权。部署生产、覆盖版本、回滚、推送镜像或发布 CLI 前，必须确认用户请求确实包含该动作。
 
-## 2. 自动识别项目
+## 2. 同步并锁定代码版本
+
+本 skill 负责替代 CI/CD 的代码同步阶段，不能假设当前目录就是正确版本：
+
+1. 检查当前 Git remote 是否与 `github_repository` 指向同一仓库；不是同一仓库时，在独立目录 clone，不覆盖当前目录。
+2. `git fetch origin "$DEPLOY_BRANCH" --tags`，确认远端分支存在。
+3. 发布默认使用 `origin/$DEPLOY_BRANCH` 指向的 commit，不用本地过期分支。记录完整 commit SHA 为 `SOURCE_COMMIT` 和 `RELEASE_TAG`。
+4. 工作区有未提交变更时停止并说明；除非用户明确要求发布这些变更，否则不能混入镜像。
+5. 对 Git submodule/LFS/monorepo 依赖按仓库已有配置同步；失败则停止，不构建残缺源码。
+6. 后续 build manifest、镜像 label/tag、部署和报告全部绑定同一 `SOURCE_COMMIT`。
+
+不得自动向代码仓库 push、merge 或创建 tag；这些不是“同步并部署”的隐含授权。
+
+## 3. 自动识别项目
 
 先检查项目已有文件，再决定发布方式。按以下顺序识别并记录证据：
 
 1. 查找生产 Compose 文件：优先 `compose.prod.yaml`、`compose.yaml`、`docker-compose.prod.yml`、`docker-compose.yml`；若多个候选无法判定，询问用户。
 2. 用 `docker compose -f <file> config --format json` 解析服务、镜像、端口、healthcheck、依赖和 `build` 上下文；不要手工猜容器名。
 3. 从 Compose 的 `build.context` / `build.dockerfile` 获取 Dockerfile；未声明时才检查项目根目录及服务目录的 `Dockerfile*`。
-4. 从 Compose `image` 获取镜像名和 tag 环境变量；缺少 `image` 的服务才按 `registry_prefix + 项目名 + 服务名` 提议映射并请求确认。
+4. 从 Compose `image` 获取镜像仓库名和 tag 环境变量；缺少 `image` 的服务才使用 `overrides.registry_prefix + 项目名 + 服务名` 提议映射并请求确认。
 5. 从 Dockerfile 的 `FROM`、`EXPOSE`、`HEALTHCHECK`、多阶段构建和项目清单（`go.mod`、`package.json`、`Cargo.toml` 等）判断构建策略。
 6. 从 Compose/Dockerfile/应用路由识别健康检查；无法确认时只要求配置 `overrides.health_urls`，不要求填写整个服务表。
 7. 检查项目已有 pull-only `deploy.sh`、发布脚本和 CI workflow，优先复用经审查的现有实现。
@@ -47,7 +64,7 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 
 将 manifest 输出为表格，逐项标出“项目识别 / 配置覆盖 / 仍需确认”。只有冲突或缺失会影响安全发布时才询问用户。后续构建、推送、部署和验证都必须使用这同一份 manifest，避免识别结果与实际命令脱节。
 
-## 3. 强制安全边界
+## 4. 强制安全边界
 
 ### 服务器只允许 pull + restart
 
@@ -72,7 +89,24 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 
 必须先成功拉取本次发布需要的**全部**镜像，再修改远端版本配置。不得边拉取边切换，也不得只更新一半服务后宣称全量发布成功。
 
-## 4. 先生成发布计划
+## 5. 完整 CI/CD 替代流程
+
+一次完整“发布/部署”请求必须覆盖并按顺序执行以下关卡；前一关失败不得进入下一关：
+
+1. **Source**：从 `github_repository` fetch `deploy_branch`，锁定 `SOURCE_COMMIT`。
+2. **Discover**：解析 Compose/Dockerfile/项目构建信息，生成 build manifest。
+3. **Build**：在本地为目标平台构建所有一方服务镜像，使用 `SOURCE_COMMIT` 作为不可变 tag。
+4. **Test**：执行仓库已有的相关测试/构建校验，再做镜像架构检查与容器 smoke test。
+5. **Publish**：推送全部镜像并记录远端 digest；任何一个失败都不部署。
+6. **Prepare**：核对远端配置/secret 是否齐全；若发布包含数据库迁移，确认项目已有迁移/备份/兼容策略，否则停止询问。
+7. **Deploy**：服务器先拉取全部 digest/tag，再原子切换配置，执行项目既有迁移入口并 `--no-build` 重启。
+8. **Verify**：验证容器状态、内部 healthcheck，并逐一检查 `verify_urls`。
+9. **Rollback**：任一部署后检查失败，恢复旧配置和旧镜像，重新验证；数据库迁移仅按项目声明的安全回滚策略处理，不臆造逆向 SQL。
+10. **Report**：报告仓库、branch、commit、测试、镜像 digest、迁移、服务器、每个网址结果及是否回滚。
+
+健康检查或单服务重启请求不扩展成完整发布；只有“发布/部署”才执行整个流水线。
+
+## 6. 先生成发布计划
 
 执行前输出一个简短计划，至少列出：
 
@@ -85,7 +119,7 @@ description: 配置驱动的自托管服务运维。用于构建并发布 Docker
 
 若用户只要求健康检查、重启单个服务或回滚，只执行对应路径，不自动扩大为完整发布。
 
-## 5. 发布前检查
+## 7. 发布前检查
 
 在任何远端状态变更前完成：
 
@@ -95,7 +129,7 @@ git rev-parse --verify HEAD
 docker version
 docker context show
 docker compose version
-ssh "$SSH_CONNECTION" 'command -v docker && docker compose version'
+ssh "$DEPLOY_SERVER" 'command -v docker && docker compose version'
 ```
 
 继续检查：
@@ -109,7 +143,7 @@ ssh "$SSH_CONNECTION" 'command -v docker && docker compose version'
 
 任何检查失败都应停止在状态变更之前，并报告具体失败项。
 
-## 6. 本地构建
+## 8. 本地构建
 
 将 `RELEASE_TAG` 设为不可变 tag，默认完整 commit SHA。逐项读取 build manifest 构建；不得再次扫描并临时换用另一份 Dockerfile。
 
@@ -144,7 +178,9 @@ GOOS="$TARGET_GOOS" GOARCH="$TARGET_GOARCH" CGO_ENABLED="$CGO_ENABLED" \
 
 打包镜像前逐项确认额外文件来源存在。不要用未引用当前构建目录的固定 `/tmp/<project>-bin`。
 
-## 7. 本地验证
+## 9. 本地测试与镜像验证
+
+先识别并执行仓库已有的测试入口（Makefile、package scripts、Go/Rust tests、CI workflow 中的只读校验）。只运行与发布产物相关的安全检查；不要照搬 CI 中的部署、发版、通知或 secret-dependent 步骤。
 
 推送前对 manifest 中每个构建镜像执行：
 
@@ -157,23 +193,23 @@ docker image inspect "$MANIFEST_IMAGE_REPOSITORY:$RELEASE_TAG" \
 
 Go 二进制至少执行 `--help` 或配置的只读自检命令。任一验证失败：停止，不推送、不部署。
 
-## 8. 推送镜像
+## 10. 推送镜像
 
 使用本机已有安全登录态登录 registry。逐个推送后以 digest 验证远端清单：
 
 ```bash
-docker push "$REGISTRY_PREFIX"/<image>:"$RELEASE_TAG"
-docker buildx imagetools inspect "$REGISTRY_PREFIX"/<image>:"$RELEASE_TAG"
+docker push "$MANIFEST_IMAGE_REPOSITORY:$RELEASE_TAG"
+docker buildx imagetools inspect "$MANIFEST_IMAGE_REPOSITORY:$RELEASE_TAG"
 ```
 
 记录每个镜像 digest。任何镜像推送或检查失败：停止，不修改远端配置。
 
-## 9. 远端原子部署
+## 11. 远端原子部署
 
 优先使用项目中**已审查、pull-only、支持回滚**的部署脚本：
 
 ```bash
-ssh "$SSH_CONNECTION" "$PROJECT_PATH/$DEPLOY_SCRIPT $RELEASE_TAG"
+ssh "$DEPLOY_SERVER" "$SERVER_PROJECT_PATH/$DEPLOY_SCRIPT $RELEASE_TAG"
 ```
 
 执行前先读取脚本，确认它：
@@ -203,19 +239,19 @@ docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps <services>
 
 远端 shell 应使用严格模式（`set -euo pipefail`）。备份文件权限不得比原 `.env` 更宽；完成后清理临时文件，成功后按配置保留有限数量备份。
 
-## 10. 验证与结果
+## 12. 验证与结果
 
 至少验证：
 
 - `docker compose ps` 中目标服务正在运行且无 restart loop
 - 每个目标服务实际镜像引用或 digest 与本次发布一致
 - 每个内部健康检查返回预期状态
-- 配置了域名时，外部 URL 使用 `curl --fail --location` 验证
+- 对 `verify_urls` 中每个网址使用 `curl --fail --location` 验证；任何一个失败都算发布验证失败
 - 最近日志中无启动、迁移或 panic/fatal 错误
 
-最终报告包含：环境、tag/commit、服务、镜像 digest、健康检查结果、是否发生回滚。不要输出凭证或完整敏感配置。
+最终报告包含：GitHub 仓库、branch、commit、服务器、服务、镜像 digest、`verify_urls` 逐项结果、是否发生回滚。不要输出凭证或完整敏感配置。
 
-## 11. 独立操作路径
+## 13. 独立操作路径
 
 ### 健康检查
 
@@ -233,7 +269,7 @@ docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps <services>
 
 仅在用户同意且 `allow_scp_fallback=true` 时使用。对目标 tag 的全部镜像执行 `docker save`，计算 SHA-256，传输后在服务器校验再 `docker load`。直传成功后仍按原子部署流程切换。不得把直传当作绕过 registry 权限问题的默认方案。
 
-## 12. CLI 发布（可选）
+## 14. CLI 发布（可选）
 
 仅当项目中识别到 CLI 发布配置（如 GoReleaser/workflow），或 `overrides.cli` 明确补充，且用户明确要求发布 CLI 时执行：
 
@@ -245,7 +281,7 @@ docker compose -f "$COMPOSE_FILE" up -d --no-build --no-deps <services>
 
 CLI 也禁止在服务器编译。不得覆盖已经存在的同名正式版本；版本冲突时停止并报告。
 
-## 13. 常见故障处理
+## 15. 常见故障处理
 
 - **依赖下载超时**：先检查代理/registry/DNS；使用配置里的安全代理传递方式，不改源码兜底。
 - **架构不匹配**：停止部署，重新为目标平台构建；不要依赖服务器现场构建修复。
