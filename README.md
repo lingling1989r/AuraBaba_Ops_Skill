@@ -47,7 +47,8 @@
 | 🐳 多策略构建 | Docker build / Go 交叉编译 / 静态文件 — 自动选最合适的 |
 | 🚀 一键部署 | 本地构建 → 推送镜像仓库 → 服务器拉取 → 重启容器 → 验证 |
 | 🔒 安全第一 | 绝不在服务器上 build、原子化配置更新、失败自动回滚 |
-| 📋 配置驱动 | 一份 `devops.config.md`，所有参数集中管理 |
+| 🔍 自动识别 | 自动读取 Compose、Dockerfile、healthcheck 和项目构建信息 |
+| 📋 最小配置 | `devops.config.json` 只保存服务器、仓库等环境差异 |
 | 🔄 SCP 兜底 | 镜像仓库挂了也能直传镜像到服务器 |
 | 📦 CLI 发布 | 支持 CLI 工具交叉编译、Mirror 直传、GitHub Release 全流程 |
 | 🧩 零锁定 | 不限定语言/框架 — Go、Node.js、Python、Rust 都能用 |
@@ -68,7 +69,7 @@ aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
 
 ### 2. 填写配置
 
-将本仓库的 `config.example.md` 复制到你的项目目录，重命名为 `devops.config.md`，填入你的服务器 IP、域名、镜像仓库地址。
+将本仓库的 `config.example.json` 复制到项目根目录并重命名为 `devops.config.json`。通常只需填写 SSH、服务器部署目录和镜像仓库前缀；Compose、Dockerfile、服务和健康检查由 Skill 从项目自动识别，只有识别不到或存在冲突时才填写 `overrides`。
 
 ### 3. 开始用
 
@@ -85,7 +86,7 @@ aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
 ```
 AuraBaba_Ops_Skill/
 ├── SKILL.md              # Skill 定义文件（工作流指令）
-├── config.example.md     # 配置模板（复制到项目中填写）
+├── config.example.json   # 最小配置模板（复制到项目中填写）
 └── README.md             # 本文件
 ```
 
@@ -153,7 +154,8 @@ AuraBaba_Ops_Skill/
 - 🐳 Multi-strategy builds (Docker / Go cross-compile / static)
 - 🚀 One-command deploy pipeline: build → push → pull → restart → verify
 - 🔒 No-build-on-server policy, atomic config updates, automatic rollback
-- 📋 Fully config-driven via `devops.config.md`
+- 🔍 Auto-discovers Compose, Dockerfiles, health checks, and build metadata
+- 📋 Minimal `devops.config.json` for environment-specific values only
 - 🔄 SCP fallback when the registry is down
 - 📦 Full CLI release pipeline: cross-compile → mirror → GitHub Release
 - 🧩 Zero lock-in — Go, Node.js, Python, Rust, whatever you use
@@ -170,7 +172,7 @@ aura skill install https://github.com/lingling1989r/AuraBaba_Ops_Skill
 
 ### 2. Configure
 
-Copy `config.example.md` to your project, rename to `devops.config.md`, and fill in your server IP, domain, and registry details.
+Copy `config.example.json` to your project as `devops.config.json`. Usually only SSH, the remote project path, and the registry prefix are required. Compose services, Dockerfiles, and health checks are auto-discovered; use `overrides` only for missing or ambiguous values.
 
 ### 3. Talk to Your AI
 
