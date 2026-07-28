@@ -1,7 +1,8 @@
 # DevOps 部署配置
 
 > 将此文件复制为 `devops.config.md` 并按你的项目修改。
-> SKILL.md 引用此文件中的配置值。所有 `{{KEY}}` 占位符需替换为实际值。
+> SKILL.md 引用此文件中的配置值。复制后请删除无关示例并填写所有必填项。
+> 不要在此文件保存密码、token、SSH 私钥或其他凭证；凭证使用本机 credential helper、环境注入或密钥管理服务。
 
 ---
 
@@ -12,7 +13,7 @@
 | `SERVER_HOST` | `<your-server-ip>` | 服务器 IP |
 | `SSH_USER` | `root` | SSH 用户名 |
 | `SSH_CONNECTION` | `root@<your-server-ip>` | SSH 连接串 |
-| `PROJECT_PATH` | `/root/workspace/<project>` | 服务器上项目代码路径 |
+| `PROJECT_PATH` | `/srv/<project>` | 服务器上的部署目录 |
 
 ## 域名（可选）
 
@@ -32,18 +33,18 @@
 
 ## 服务列表
 
-每个服务一行，用 `|` 分隔字段：
+每个服务一行，用 `|` 分隔字段。完整镜像名由 `REGISTRY_IMAGE_PREFIX/镜像名:RELEASE_TAG` 组成：
 ```
-名称 | 镜像名 | 容器名 | 端口 | 健康检查URL | 构建策略
+Compose服务名 | 镜像名 | Dockerfile/构建入口 | 健康检查URL | 构建策略 | 冒烟超时秒
 ```
 
-| 服务 | 镜像名 | 容器名 | 端口 | 健康检查 | 构建策略 |
-|------|--------|--------|------|----------|----------|
-| `frontend` | `<project>-web` | `<project>-frontend-1` | `3000` | `http://127.0.0.1:3000/` | `docker-node` |
-| `backend` | `<project>-backend` | `<project>-backend-1` | `8080` | `http://127.0.0.1:8080/health` | `go-cross` |
-| `docs` | `<project>-docs` | `<project>-docs-1` | `4000` | `http://127.0.0.1:4000/docs` | `docker-node` |
+| Compose 服务 | 镜像名 | Dockerfile/入口 | 健康检查 | 构建策略 | 超时(秒) |
+|--------------|--------|-----------------|------------|----------|----------|
+| `frontend` | `<project>-web` | `Dockerfile.web` | `http://127.0.0.1:3000/` | `docker-node` | `60` |
+| `backend` | `<project>-backend` | `server:server=./cmd/server,migrate=./cmd/migrate` | `http://127.0.0.1:8080/health` | `go-cross` | `60` |
+| `docs` | `<project>-docs` | `Dockerfile.docs` | `http://127.0.0.1:4000/docs` | `docker-node` | `60` |
 
-**服务名（第一列）** 用于 `docker compose up --no-deps` 命令中指定要重启的容器。
+**Compose 服务名（第一列）** 用于 `docker compose up --no-build --no-deps`。不要依赖 Compose 自动生成的容器名。
 
 ### 构建策略说明
 
@@ -60,10 +61,11 @@
 | 配置项 | 值 | 说明 |
 |--------|-----|------|
 | `GO_MODULE_DIR` | `server` | Go module 目录 |
-| `GO_BINARIES` | `server:./cmd/server,migrate:./cmd/migrate` | 二进制名:入口路径，逗号分隔 |
-| `GO_ENTRY_DIR` | `server/cmd/server` | 主服务入口 |
-| `GO_LDFLAGS_DEFAULT` | `-s -w` | 默认 ldflags |
-| `GO_LDFLAGS_VERSIONED` | `-s -w -X main.version=dev -X main.commit=<commit>` | 带版本号的 ldflags（哪些二进制用此 flags） |
+| `GO_BINARIES` | `server=./cmd/server,migrate=./cmd/migrate` | 二进制名=入口路径，逗号分隔 |
+| `TARGET_GOOS` | `linux` | 目标操作系统 |
+| `TARGET_GOARCH` | `amd64` | 目标 CPU 架构 |
+| `CGO_ENABLED` | `0` | 是否启用 CGO；启用时需配置交叉工具链 |
+| `GO_LDFLAGS` | `-s -w -X main.version=<version> -X main.commit=<commit>` | 统一 ldflags；发布时替换版本和 commit |
 
 ### Web/Docs Docker build 配置（使用 `docker-node` 策略时）
 
@@ -88,7 +90,9 @@
 | 配置项 | 值 | 说明 |
 |--------|-----|------|
 | `COMPOSE_FILE` | `docker-compose.selfhost.yml` | 生产 compose 文件 |
-| `COMPOSE_FILE_BUILD` | `docker-compose.selfhost.build.yml` | 🚫 开发用 build 文件，禁止在生产引用 |
+| `DEPLOY_SCRIPT` | `deploy.sh` | 可选；需经审查的 pull-only 远端部署脚本 |
+| `DEPLOY_TIMEOUT_SECONDS` | `180` | 所有健康检查的总超时 |
+| `BACKUP_RETENTION` | `3` | 成功部署后保留的环境文件备份数 |
 
 ## 环境变量
 
@@ -100,7 +104,7 @@
 .env 中镜像相关的环境变量格式（按服务）：
 ```
 <IMAGE_NAME>_IMAGE=<registry>/<image>
-IMAGE_TAG=<commit-hash>
+IMAGE_TAG=<full-commit-sha>
 ```
 
 ## 数据库（可选）
@@ -117,7 +121,7 @@ IMAGE_TAG=<commit-hash>
 | 配置项 | 值 | 说明 |
 |--------|-----|------|
 | `LOCAL_ARCH` | `ARM64` | 本地架构（macOS 通常 ARM64） |
-| `TARGET_ARCH` | `linux/amd64` | 目标平台 |
+| `TARGET_ARCH` | `linux/amd64` | Docker 目标平台，需与 GOOS/GOARCH 一致 |
 | `DOCKER_RUNTIME` | `colima` | Docker 运行时（colima / docker-desktop / orbstack） |
 
 Colima 启动参数：
@@ -136,6 +140,17 @@ colima start --vm-type vz --cpu 4 --memory 8
 | `COLIMA_PROXY` | `http://192.168.5.2:7897` | Colima 代理地址 |
 | `GO_MODULE_PROXY` | `https://goproxy.cn,direct` | Go module 代理 |
 
+代理为可选项。不要把带账号密码的代理 URL 写进此文件；敏感代理凭证应从环境或密钥管理服务注入。
+
+## 发布与回滚策略
+
+| 配置项 | 值 | 说明 |
+|--------|-----|------|
+| `TAG_POLICY` | `full-git-sha` | 仅接受 40 位 Git commit SHA；如需 semver 请明确修改策略 |
+| `SCP_FALLBACK` | `false` | Registry 故障时是否允许经用户确认后直传镜像 |
+| `EXTERNAL_HEALTH_URL` | `https://<your-domain.com>/` | 可选；部署后的外部验证 URL |
+| `EXPECTED_HTTP_STATUS` | `200` | 健康检查预期状态码 |
+
 ## CLI 发布（可选）
 
 | 配置项 | 值 | 说明 |
@@ -143,7 +158,9 @@ colima start --vm-type vz --cpu 4 --memory 8
 | `CLI_ENABLED` | `true` 或 `false` | 是否发布 CLI |
 | `CLI_ENTRY` | `cmd/<cli-name>` | CLI 入口目录 |
 | `CLI_BINARY` | `<cli-name>` | CLI 二进制名 |
-| `CLI_MIRROR_PATH` | `/var/www/cli/` | 服务器 CLI mirror 路径 |
+| `CLI_VERSION_LDFLAG` | `main.version` | 版本注入变量 |
+| `CLI_COMMIT_LDFLAG` | `main.commit` | commit 注入变量 |
+| `CLI_MIRROR_PATH` | `/var/www/cli/` | 服务器 CLI mirror 路径；服务器只接收产物，不编译 |
 | `CLI_MIRROR_URL` | `https://<domain>/cli/` | CLI mirror URL |
 | `CLI_LATEST_URL` | `https://<domain>/cli/latest` | Latest 版本查询 URL |
 | `CLI_RELEASE_REPO` | `<owner>/<release-repo>` | GitHub Release 仓库 |
