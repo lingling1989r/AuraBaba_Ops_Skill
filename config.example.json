@@ -2,6 +2,7 @@
   "github_repository": "https://github.com/your-org/your-project.git",
   "deploy_branch": "main",
   "deploy_server": "deploy@203.0.113.10",
+  "ssh_private_key_path": "~/.ssh/your-project-production",
   "server_project_path": "/srv/your-project",
   "verify_urls": [
     "https://www.example.com/",

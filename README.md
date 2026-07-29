@@ -63,13 +63,14 @@
 
 ### 2. 填写配置
 
-将本仓库的 `config.example.json` 复制到项目根目录并重命名为 `devops.config.json`，填写 GitHub 代码仓库、发布分支、`user@IP` 部署服务器、服务器项目目录，以及部署后要逐一验证的官网/API 网址。Compose、Dockerfile、镜像和内部 healthcheck 由 Skill 从项目自动识别，只有识别不到或存在冲突时才填写 `overrides`。
+将本仓库的 `config.example.json` 复制到项目根目录并重命名为 `devops.config.json`，填写 GitHub 代码仓库、发布分支、`user@IP` 部署服务器、本机生产 SSH 私钥路径、服务器项目目录，以及部署后要逐一验证的官网/API 网址。Compose、Dockerfile、镜像和内部 healthcheck 由 Skill 从项目自动识别，只有识别不到或存在冲突时才填写 `overrides`。
 
 | 配置项 | 填什么 |
 |--------|--------|
 | `github_repository` | 代码同步来源，例如 `https://github.com/org/repo.git` |
 | `deploy_branch` | 发布分支，例如 `main` |
 | `deploy_server` | 服务器 SSH 地址，例如 `deploy@1.2.3.4` |
+| `ssh_private_key_path` | 本机生产专用私钥路径，例如 `~/.ssh/app-production`；只填路径，绝不粘贴私钥正文 |
 | `server_project_path` | 服务器上的 Compose/部署目录，例如 `/srv/app` |
 | `verify_urls` | 官网、API、Docs 等验证网址；JSON 数组中以逗号分隔 |
 | `overrides` | 默认 `{}`；只有自动识别失败时才填写 |
@@ -171,7 +172,7 @@ Find **dev-ops** in the [AuraBaba Skill Marketplace](https://aurababa.com/aurade
 
 ### 2. Configure
 
-Copy `config.example.json` to your project as `devops.config.json`. Fill in the GitHub repository, deployment branch, `user@IP` server, remote project path, and all website/API URLs that must pass after deployment. Compose services, Dockerfiles, images, and internal health checks are auto-discovered; use `overrides` only for missing or ambiguous values.
+Copy `config.example.json` to your project as `devops.config.json`. Fill in the GitHub repository, deployment branch, `user@IP` server, local path to the dedicated production SSH private key, remote project path, and all website/API URLs that must pass after deployment. Store only the key path—never private-key contents. Compose services, Dockerfiles, images, and internal health checks are auto-discovered; use `overrides` only for missing or ambiguous values.
 
 ### 3. Talk to Your AI
 
